@@ -1,0 +1,12 @@
+A simple python script that shells out key metrics from mongodb to gmetric.
+Right now it tracks the following:
+
+* Operations per second
+* Memory usage
+* Btree statistics
+* Master/Slave status
+* Current connections
+
+It is intended to be run every minute as a cron.
+
+Thanks!
