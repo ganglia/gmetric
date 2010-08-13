@@ -1,6 +1,9 @@
 This is the official repository for hosting all user-contributed gmetric scripts.
 
-To have your script added here, please send a request to:
+To have your scripts added here, please fork the repository, create separate sub-directories for each script
+and submit a pull request.
+
+If you have any questions, you could reach us at:
 
 ganglia-developers@lists.sourceforge.net
 
