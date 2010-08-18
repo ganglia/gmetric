@@ -1,0 +1,17 @@
+Gmetric script pulled from http://ganglia.info/gmetric
+
+If you are the author of the script, and have an updated version, please fork the repo and
+submit a pull request.  For additional information about the repository, please see the
+README in the repository top-level.
+
+Author: C Viven Rajendra
+
+Description:
+
+gmetric to monitor mysql replication delay between master and slave
+
+Language: Python
+
+Category: MYSQL replication
+
+Dependencies: None
