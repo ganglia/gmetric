@@ -1,21 +1,18 @@
 #!/usr/bin/perl
 #
-# script found at http://ganglia.sourceforge.net/gmetric/view.php?id=18
+# Feeds ganglia with AoE error message information.
 #
-# Feeds ganglia with web server error rate information.
-#
-# Can be called by Apache by setting up a special logger:
-#
-#   LogFormat "%>s" status_only
-#   CustomLog "|/path/to/apache-logs-to-ganglia.pl -d 10" status_only
-#
-#
+# Original author, to watch Apache error logs:
 # Author: Nicolas Marchildon (nicolas@marchildon.net)
 # Date: Date: 2002/11/26 04:15:19 
 # Revision: Revision: 1.3 
+# 
 #
-# Modified by Ben Hartshorne
+# Modified by Ben Hartshorne (still with Apache)
 # $Header: /var/lib/cvs/ops/ganglia/ganglia_apache.pl,v 1.1 2006/07/11 17:29:27 ben Exp $
+#
+# Further modified by Jesse Becker to do AoE stuff in August 2010.
+#
 
 use Getopt::Long;
 use strict;
