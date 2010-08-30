@@ -4,12 +4,8 @@
 #
 # Original author, to watch Apache error logs:
 # Author: Nicolas Marchildon (nicolas@marchildon.net)
-# Date: Date: 2002/11/26 04:15:19 
-# Revision: Revision: 1.3 
-# 
 #
 # Modified by Ben Hartshorne (still with Apache)
-# $Header: /var/lib/cvs/ops/ganglia/ganglia_apache.pl,v 1.1 2006/07/11 17:29:27 ben Exp $
 #
 # Further modified by Jesse Becker to do AoE stuff in August 2010.
 #
