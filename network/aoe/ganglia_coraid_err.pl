@@ -2,13 +2,11 @@
 #
 # Feeds ganglia with AoE error message information.
 #
-# Original author, to watch Apache error logs:
-# Author: Nicolas Marchildon (nicolas@marchildon.net)
-#
-# Modified by Ben Hartshorne (still with Apache)
-#
+# Original Authors (to watch Apache logs):
+#   Author: Nicolas Marchildon (nicolas@marchildon.net)
+#   Modified by Ben Hartshorne
+# 
 # Further modified by Jesse Becker to do AoE stuff in August 2010.
-#
 
 use Getopt::Long;
 use strict;
@@ -56,6 +54,13 @@ EOS
 }
 
 
+my %units = (
+    _default => 'msg_per_sec',
+    nout     => 'Average value',
+    nout_max => 'Max value per interval',
+);
+
+
 my %metrics;
 
 my $start = time;
@@ -72,15 +77,13 @@ sub catch_hup {
 $SIG{HUP} = \&catch_hup;  # best strategy
 
 sub broadcast {
-    my $metric = shift;
-    my $value = shift;
-    my $type = shift;
-    my $units = shift;
+    my ($metric,$value,$type,$units) = @_;
+    
     my $timeValid = $delay + 10; # Number of seconds this sample is good for
-    my $cmd = "$GMETRIC $GMETRIC_ARGS --name=$metric --value=$value --type=$type --units=$units --tmax=$timeValid";
-    print "CMD: $cmd\n" if $debug;
+    my $cmd = "$GMETRIC $GMETRIC_ARGS --name=$metric --value=$value --type=$type --units='$units' --tmax=$timeValid";
+    print '(Silent mode) ' if ($nosend && $debug);
+    print  "CMD: $cmd\n" if $debug;
 
-    return if $nosend;
     
     my $ret = system($cmd) / 256;
     if ($ret == -1) {
@@ -96,11 +99,26 @@ sub report {
 
     my $delta = time - $start;
     if ($delta < 1) { $delta =1};
+
     print "Reporting on($delta): ". Dumper(\%metrics) if $debug;
-    foreach (keys %metrics) {
-        my $rate = $metrics{$_} / $delta;
-        $metrics{$_} = 0;
-        broadcast ("aoe_$_", $rate, 'float', 'msg_per_sec');
+    
+    foreach my $metric (keys %metrics) {
+        my $rate= $metrics{$metric};
+        $metrics{$metric} = 0;
+
+         # Metrics of type foo_max and foo_min shouldn't be "averaged"
+        if ( $metric eq 'nout' ) {
+            if ($rate > 0 and $metrics{retransmit} > 0) {
+                $rate /= $metrics{retransmit};
+            }
+        } 
+        
+        elsif ( $metric !~ /_(?:max|min)$/) {
+            $rate /=  $delta;
+        } 
+        
+        my $units = $units{$metric} || $units{_default};
+        broadcast ("aoe_$metric", $rate, 'float', $units);
     }
     
     $start = time;
@@ -115,9 +133,26 @@ sub parse_line {
 
     #print Dumper($metric_r, $line);
 
-    $metric_r->{retransmit}++     if $line =~ /retransmit/;
-    $metric_r->{unexpected_rsp}++ if $line =~ /unexpected rsp/;
+    if ($line =~ /retransmit.+nout=(\d+)/) {
+        $metric_r->{retransmit}++;
+        $metric_r->{nout}+=$1;
+        $metric_r->{nout_max} = $1 > $metric_r->{nout_max} ? $1 : $metric_r->{nout_max};
+        next;
+    }
+    
+    elsif ($line =~ /unexpected rsp/) {
+        $metric_r->{unexpected_rsp}++;
+    }
 
+    elsif ($line =~ /no frame available/) {
+        $metric_r->{no_frame}++;
+    } 
+    
+    else {
+        $metric_r->{unknown}++;
+    }
+
+    
     return;
 }
 
@@ -126,7 +161,7 @@ sysopen(ETHERD, "/dev/etherd/err",  O_RDONLY|O_NONBLOCK) || die "Failed open: [$
 $SIG{ALRM} = \&report;
 
 alarm $delay;
-my $first = 1 ;
+my $first = 1;
 while (1) {
     while (my $line=<ETHERD>) {
         #chomp $line;
@@ -135,7 +170,8 @@ while (1) {
     }
     #print 'Metrics after loop: '. Dumper(\%metrics);
     if ($first) {
-        &report;
+        # don't report on first interval...  May have bogus old data.
+        #&report;
         $first=0;
     }
     sleep $delay -0.01;
