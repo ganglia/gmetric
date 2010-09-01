@@ -1,7 +1,4 @@
-Gmetric script pulled from http://ganglia.info/gmetric
-
-If you are the author of the script, and have an updated version, please fork the repo and
-submit a pull request.  For additional information about the repository, please see the
+For additional information about the repository, please see the
 README in the repository top-level.
 
 Author: Nicolas Marchildon
@@ -9,6 +6,11 @@ Author: Nicolas Marchildon
 Description:
 
 Reports the number of web server error response codes
+
+This script can be called by Apache by setting up a special logger:
+
+   LogFormat "%>s" status_only
+   CustomLog "|/path/to/apache-logs-to-ganglia.pl -d 10" status_only
 
 Language: Perl
 

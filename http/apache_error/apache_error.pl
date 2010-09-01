@@ -2,22 +2,29 @@
 #
 # Feeds ganglia with web server error rate information.
 #
-# Can be called by Apache by setting up a special logger:
+# The latest version can be found on GitHub:
+#
+# http://github.com/ganglia/gmetric/tree/master/http/apache_error/
+# 
+# This script can be called by Apache by setting up a special logger:
 #
 #   LogFormat "%>s" status_only
 #   CustomLog "|/path/to/apache-logs-to-ganglia.pl -d 10" status_only
 #
 #
-# Author: Nicolas Marchildon (nicolas@marchildon.net)
-# Date: $Date: 2002/11/26 04:15:19 $
-# Revision: $Revision: 1.3 $
-
+# Original Author: Nicolas Marchildon (nicolas@marchildon.net)
+# Date: 2002/11/26 04:15:19
+#
+# Modified by Ben Hartshorne
+# $Header: /var/lib/cvs/ops/ganglia/ganglia_apache.pl,v 1.1 2006/07/11 17:29:27 ben Exp $
 
 use Getopt::Long;
 
 # Defaults
 $DELAY = 20;
 $METRIC = 'Apache';
+$GMETRIC = "/usr/bin/gmetric";
+$GMETRIC_ARGS="-c /etc/gmond.conf";
 
 # Parse command line
 GetOptions( { d => \$DELAY, delay => \$DELAY,
@@ -47,6 +54,9 @@ EOS
         exit 1;
 }
 
+$count200 = 0;
+$count300 = 0;
+$count400 = 0;
 $count500 = 0;
 $countOther = 0;
 $start = time;
@@ -65,7 +75,7 @@ sub broadcast {
     my $type = shift;
     my $units = shift;
     $timeValid = $DELAY + 10; # Number of seconds this sample is good for
-    $cmd = "/usr/bin/gmetric --name=$metric --value=$value --type=$type --units=$units --tmax=$timeValid";
+    $cmd = "$GMETRIC $GMETRIC_ARGS --name=$metric --value=$value --type=$type --units=$units --tmax=$timeValid";
     print $cmd."\n";
     $ret = system($cmd) / 256;
     if ($ret == -1) {
@@ -76,18 +86,23 @@ sub broadcast {
 sub report {
     print "Reporting... ";
     lock $count500;
-    $total = $count500 + $countOther;
+    $total = $count200 + $count300 + $count400 + $count500 + $countOther;
     $delta = time - $start;
     $totalRate = $total / $delta;
-    $errorRate = $count500 / $delta;
-    if ($total > 0) {
-        $percent500 = 100 * $count500 / $total;
-    } else {
-        $percent500 = 0;
-    }
-    broadcast $METRIC."ErrorPercentage", $percent500, "float", "%" ;
-    broadcast $METRIC."ErrorRate", $errorRate, "float", "requests" ;
-    broadcast $METRIC."RequestRate", $totalRate, "float", "requests" ;
+    $twoRate = $count200 / $delta;
+    $threeRate = $count300 / $delta;
+    $fourRate = $count400 / $delta;
+    $fiveRate = $count500 / $delta;
+    $otherRate = $countOther / $delta;
+    broadcast "apache_200", $twoRate, "float", "req_per_sec" ;
+    broadcast "apache_300", $threeRate, "float", "req_per_sec" ;
+    broadcast "apache_400", $fourRate, "float", "req_per_sec" ;
+    broadcast "apache_500", $fiveRate, "float", "req_per_sec" ;
+    broadcast "apache_other", $otherRate, "float", "req_per_sec" ;
+    broadcast "apacheTotal", $totalRate, "float", "req_per_sec" ;
+    $count200 = 0;
+    $count300 = 0;
+    $count400 = 0;
     $count500 = 0;
     $countOther = 0;
     $start = time;
@@ -101,7 +116,13 @@ sub parse_line {
     $_ = $line;
     if (/5\d\d/) {
         $count500++;
-    } else {
+    } elsif (/2\d\d/) {
+		    $count200++;
+    } elsif (/3\d\d/) {
+		    $count300++;
+    } elsif (/4\d\d/) {
+		    $count400++;
+		} else {
         $countOther++;
     }
     lock $count500;
@@ -120,3 +141,5 @@ while (true) {
     if ($@ and $@ !~ /alarm clock restart/) { die }
     report;
 }
+
+
