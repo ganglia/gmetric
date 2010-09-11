@@ -1,0 +1,18 @@
+Author: Scott Dworkis
+
+Description:
+
+uses cassandra nodetool to sample deltas for counters and
+instantaneous values for cfstats and tpstats.  note i have only tested
+with a special csv mode of gmetric... you can bypass this mode and use
+vanilla gmetric with --nocsv, but beware it will generate over 100
+forks on a trivial cassandra schema. the patch for the csv enabled
+gmetric is here:
+
+http://bugzilla.ganglia.info/cgi-bin/bugzilla/show_bug.cgi?id=273
+
+Language: perl
+
+Category: Database
+
+Dependencies: cassandra
