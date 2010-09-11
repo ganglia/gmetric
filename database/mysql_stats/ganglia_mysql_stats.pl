@@ -12,7 +12,7 @@
 # Adjust this variables appropriately. Feel free to add any options to gmetric_command
 # necessary for running gmetric in your environment to gmetric_options e.g. -c /etc/gmond.conf
 $gmetric_exec = "/usr/bin/gmetric";
-$gmetric_options = "-c /etc/gmond.conf";
+$gmetric_options = "";
 
 # You only need to grant usage privilege to the user getting the stats e.g.
 #### grant USAGE on *.* to 'ganglia'@'localhost' identified by 'xxxxx';
@@ -30,22 +30,43 @@ $stats_command = "/usr/bin/mysqladmin -u ganglia --password=xxxxx extended-statu
 %counter_metrics = (
 	"Bytes_received" => "bytes",
 	"Bytes_sent" => "bytes",
+	"Com_create_table" => "tables",
 	"Com_delete" => "operations",
 	"Com_insert" => "operations",
 	"Com_replace" => "operations", 
 	"Com_select" => "operations", 
 	"Com_update" => "operations",
-	"Key_reads" => "operations",
+	"Com_stmt_execute" => "statements",
+	"Key_read_requests" => "req",
+	"Key_write_requests" => "req",
+	"Key_reads" => "ops",
+	"Key_writes" => "ops",
 	"Qcache_hits" => "hits",
+	"Qcache_not_cached" => "queries",
 	"Questions" => "queries",
 	"Connections" => "connections",
-	"Threads_created" => "threads",
-        "Slow_queries" => "queries"
+	"Created_tmp_tables" => "tables",
+	"Created_tmp_disk_tables" => "tables",
+	"Innodb_row_lock_time" => "seconds",
+	"Innodb_buffer_pool_read_requests" => "req",
+	"Innodb_buffer_pool_write_requests" => "req",
+	"Innodb_data_read" => "bytes",
+	"Innodb_data_written" => "bytes",
+        "Slow_queries" => "queries",
+        "Select_full_join" => "joins",
+        "Select_range" => "ranges",
+	"Select_scan" => "scans",
+	"Sort_rows" => "rows",
+	"Table_locks_waited" => "locks",
+	"Threads_created" => "threads"
 );
 
 %absolute_metrics = ( 
         "Threads_connected" => "threads",
-	"Threads_running" => "threads" 
+	"Threads_running" => "threads" ,
+	"Innodb_row_lock_time_avg" => "seconds",
+	"Qcache_queries_in_cache" => "queries",
+	"Qcache_free_memory" => "bytes"
 );
 
 # DON"T TOUCH BELOW UNLESS YOU KNOW WHAT YOU ARE DOING
