@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vim: set ts=4 sw=4 et :
 
 from subprocess import Popen
 import sys, os, urllib2
@@ -11,7 +12,7 @@ except ImportError:
 GMETRIC = "/usr/bin/gmetric --name=\"%s\" --value=\"%s\" --type=\"int32\" --units=\"%s\""
 
 class ServerStatus:
-    ops_tmp_file = os.path.join("/", "tmp", "mongo-prevops")    
+    ops_tmp_file = os.path.join("/", "tmp", "mongo-prevops")
 
     def __init__(self):
         self.status = self.getServerStatus()
@@ -22,12 +23,12 @@ class ServerStatus:
     def getServerStatus(self):
         raw = urllib2.urlopen( "http://127.0.0.1:28017/_status" ).read()
         return json.loads( raw )["serverStatus"]
-    
+
     def callGmetric(self, d):
         for k,v in d.iteritems():
             cmd = GMETRIC % ("mongodb_" + k, v[0], v[1])
             Popen(cmd, shell=True)
-    
+
     def conns(self):
         ss = self.status
         self.callGmetric({
@@ -43,7 +44,7 @@ class ServerStatus:
             "btree_resets" : (b["resets"], "count"),
             "btree_miss_ratio" : (b["missRatio"], "ratio"),
         })
-    
+
     def mem(self):
         m = self.status["mem"]
         self.callGmetric({
@@ -62,7 +63,7 @@ class ServerStatus:
             f.close()
         except (ValueError, IOError):
             prev_ops = {}
-        
+
         for k,v in cur_ops.iteritems():
             if k in prev_ops:
                 name = k + "s_per_second"
@@ -70,14 +71,14 @@ class ServerStatus:
                     name = "queries_per_second"
                 out[name] = ((float(v) - float(prev_ops[k]) ) / 60, "ops/s")
 
-        f = open(self.ops_tmp_file, 'w') 
+        f = open(self.ops_tmp_file, 'w')
         try:
             f.write(json.dumps(cur_ops))
         finally:
             f.close()
 
         self.callGmetric(out)
-    
+
     def repl(self):
         self.callGmetric({
             "is_master" : (self.status["repl"]["ismaster"], "boolean")
@@ -87,6 +88,6 @@ class ServerStatus:
         self.callGmetric({
             "lock_ratio" : (self.status["globalLock"]["ratio"], "ratio")
         })
-    
+
 if __name__ == "__main__":
     ServerStatus()
