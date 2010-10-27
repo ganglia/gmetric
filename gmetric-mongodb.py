@@ -80,8 +80,12 @@ class ServerStatus:
         self.callGmetric(out)
 
     def repl(self):
+        ismaster = 0;
+        if (self.status["repl"]["ismaster"]):
+            ismaster = 1
+
         self.callGmetric({
-            "is_master" : (self.status["repl"]["ismaster"], "boolean")
+            "is_master" : (ismaster, "boolean")
         })
 
     def lock(self):
