@@ -17,7 +17,7 @@ class ServerStatus:
     def __init__(self):
         self.status = self.getServerStatus()
         # call individual metrics
-        for f in ["conns", "btree", "mem", "repl", "ops", "lock"]:
+        for f in ["conns", "btree", "mem", "backgroundFlushing", "repl", "ops", "lock"]:
             getattr(self,f)()
 
     def getServerStatus(self):
@@ -51,6 +51,12 @@ class ServerStatus:
             "mem_resident" : (m["resident"], "MB"),
             "mem_virtual" : (m["virtual"], "MB"),
             "mem_mapped" : (m["mapped"], "MB"),
+        })
+
+    def backgroundFlushing(self):
+        f = self.status["backgroundFlushing"]
+        self.callGmetric({
+            "flush_average" : (f["average_ms"], "ms"),
         })
 
     def ops(self):
