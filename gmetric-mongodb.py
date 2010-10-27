@@ -96,7 +96,9 @@ class ServerStatus:
 
     def lock(self):
         self.callGmetric({
-            "lock_ratio" : (self.status["globalLock"]["ratio"], "ratio")
+            "lock_ratio" : (self.status["globalLock"]["ratio"], "ratio"),
+            "lock_queue_readers" : (self.status["globalLock"]["currentQueue"]["readers"], "queue size"),
+            "lock_queue_writers" : (self.status["globalLock"]["currentQueue"]["writers"], "queue size"),
         })
 
 if __name__ == "__main__":
