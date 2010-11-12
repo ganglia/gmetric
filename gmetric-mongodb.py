@@ -75,7 +75,7 @@ class ServerStatus:
                 name = k + "s_per_second"
                 if k == "query":
                     name = "queries_per_second"
-                out[name] = ((float(v) - float(prev_ops[k]) ) / 60, "ops/s")
+                out[name] = (max(0, float(v) - float(prev_ops[k]) ) / 60, "ops/s")
 
         f = open(self.ops_tmp_file, 'w')
         try:
