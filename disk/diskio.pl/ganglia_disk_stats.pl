@@ -11,6 +11,7 @@
 # below to @which_metrics
 ###########################################################################
 use strict;
+use v5.10;
 
 my $gmetric_command = "/usr/bin/gmetric";
 
@@ -24,7 +25,7 @@ unless ( $numArgs >= 1 ) {
     die("You need to supply device(s) e.g. sda, hda, md0, etc.");
 }
 
-my @which_metrics = split( / /, "4 8 6 10" );
+my @which_metrics = split( / /, "4 8 6 10 13" );
 
 # Where to store the last stats file
 my $tmp_dir_base = "/tmp/disk_stats";
@@ -159,6 +160,15 @@ sub do_stats {
                           . $device . "_"
                           . $disk_stat{$metric} . " -v "
                           . $rate );
+                }
+		elsif ($which_metrics[$i] == "13") {
+		    my $percentage=$rate/10;	# convert ms/s to a percentage
+		    print "$disk_stat{$metric} = $percentage%\n";
+		    system( $gmetric_command
+                          . " -tdouble -u 'percent' -n diskstat_"
+                          . $device . "_"
+                          . "utilisation" . " -v "
+                          . $percentage );
                 }
                 else {
                     print "$disk_stat{$metric} = $rate / sec\n";
