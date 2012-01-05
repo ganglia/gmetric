@@ -1,7 +1,7 @@
 <?php
 
 # Specify a list of servers you want to monitor
-$servers= array("serv1", "serv2");
+$servers= array("serv1","serv2");
 
 # Add any other options you want.
 $gmetric_cmd="/usr/bin/gmetric -d 180 ";
@@ -14,9 +14,15 @@ $absolute_metrics = array(
   "cpuutil" => ".1.3.6.1.4.1.789.1.2.1.3.0"
 );
 
+# More metrics found here https://github.com/wAmpIre/check_netappfiler/blob/master/check_netappfiler.py
 $counter_metrics = array(
+  "cpu_context_switches" => ".1.3.6.1.4.1.789.1.2.1.8.0",
   "cifs_ops" => "1.3.6.1.4.1.789.1.2.2.28.0",
-  "nfs_ops" => "1.3.6.1.4.1.789.1.2.2.27.0"
+  "nfs_ops" => "1.3.6.1.4.1.789.1.2.2.27.0",
+  "diskio_readbytes" => ".1.3.6.1.4.1.789.1.2.2.32",
+  "diskio_writebytes" => ".1.3.6.1.4.1.789.1.2.2.33",
+  "net_rcvd_bytes" => ".1.3.6.1.4.1.789.1.2.2.30.0",
+  "net_sent_bytes" => ".1.3.6.1.4.1.789.1.2.2.31.0"
 );
 
 $tmp_stats_file = "/tmp/netappstats";
@@ -69,7 +75,7 @@ foreach ( $servers as $index => $server ) {
 	$value = 0;
       }
 
-      system($gmetric_cmd . " -n netapp_" . $metric . "_" . $server . " -t float -u 'ops/s' -v " . $value);
+      system($gmetric_cmd . " -n netapp_" . $metric . "_" . $server . " -t float -u '/s' -v " . $value);
 
   }
 
