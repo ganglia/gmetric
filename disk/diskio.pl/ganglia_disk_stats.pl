@@ -172,6 +172,10 @@ sub do_stats {
 # http://svn.wikimedia.org/viewvc/mediawiki/trunk/ganglia_metrics/GangliaMetrics.py?view=log
 #      The sector size in this case is hard-coded in the kernel as 512 bytes
 #      There doesn't appear to be any simple way to retrieve that figure
+		
+		#replacing "/" by "_" for later graph generation
+                $device =~ s/\//\_/;
+
                 if ( $which_metrics[$i] == "6" || $which_metrics[$i] == "10" ) {
                     $rate = $rate * 512;
                     print "$disk_stat{$metric} = $rate bytes/sec\n";
