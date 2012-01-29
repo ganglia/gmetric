@@ -90,10 +90,10 @@ foreach $arg (<@ARGV>) {
 
 sub do_stats {
     my $device         = shift;
-    
+
     # temp dir creation
     my @splitted        = split(/\//,$device);
-    for ( my $i=0 ; $i <= $#splitted ; $i++ ) {
+    for ( my $i=0 ; $i < $#splitted ; $i++ ) {
         $tmp_dir_base = $tmp_dir_base . "$splitted[$i]/";
     }
 
@@ -102,9 +102,10 @@ sub do_stats {
     for (my  $i=2 ; $i < $#splitted ; $i++ ) {
         $device = $device . "$splitted[$i]/";
     }
+    
     $device = $device . "$splitted[$#splitted]";
+    my $tmp_stats_file = $tmp_dir_base . "$splitted[$#splitted]";
 
-    my $tmp_stats_file = $tmp_dir_base . "/" . "disk_stats_" . $device;
 ###############################################################################
     # We need to store a baseline with statistics. If it's not there let's dump
     # it into the file. Don't do anything else
