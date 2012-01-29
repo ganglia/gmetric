@@ -19,6 +19,12 @@ if ( !-x $gmetric_command ) {
     die("Gmetric command is not executable. Exiting...");
 }
 
+# Optional:
+# Aggregate reports under the disk (default) section.
+# Uncomment following line if you applyed a gmetric patch - available here: http://tobym.posterous.com/gmetric-track-and-group-arbitrary-metrics-wit
+# $gmetric_command = $gmetric_command . " --group disk";
+
+
 my $numArgs = $#ARGV + 1;
 
 unless ( $numArgs >= 1 ) {
@@ -84,6 +90,20 @@ foreach $arg (<@ARGV>) {
 
 sub do_stats {
     my $device         = shift;
+    
+    # temp dir creation
+    my @splitted        = split(/\//,$device);
+    for ( my $i=0 ; $i <= $#splitted ; $i++ ) {
+        $tmp_dir_base = $tmp_dir_base . "$splitted[$i]/";
+    }
+
+    # $device variable for parsing init
+    $device = "";
+    for (my  $i=2 ; $i < $#splitted ; $i++ ) {
+        $device = $device . "$splitted[$i]/";
+    }
+    $device = $device . "$splitted[$#splitted]";
+
     my $tmp_stats_file = $tmp_dir_base . "/" . "disk_stats_" . $device;
 ###############################################################################
     # We need to store a baseline with statistics. If it's not there let's dump
