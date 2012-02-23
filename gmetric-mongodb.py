@@ -54,7 +54,9 @@ class ServerStatus:
                  "fileSize": "bytes", "dataSize": "bytes", "indexSize": "bytes", "storageSize": "bytes" }
 
         totals = {}
+        totalsNoLocals = {}
         for k in keys.keys():
+            totalsNoLocals[k] = 0
             totals[k] = 0
 
         for status in self.stats:
@@ -64,11 +66,15 @@ class ServerStatus:
                 value = status[k]
                 self.callGmetric({dbName + "_" + k: (value, v)})
                 totals[k] += value
+                if (dbName != "local"):
+                    totalsNoLocals[k] += value
 
         for k, v in keys.iteritems():
             self.callGmetric({"total_" + k: (totals[k], v)})
+            self.callGmetric({"totalNoLocal_" + k: (totals[k], v)})
 
         self.callGmetric({"total_dataAndIndexSize" : (totals["dataSize"]+totals["indexSize"], "bytes")})
+        self.callGmetric({"totalNoLocal_dataAndIndexSize" : (totalsNoLocals["dataSize"]+totalsNoLocals["indexSize"], "bytes")})
 
     def callGmetric(self, d):
         for k, v in d.iteritems():
