@@ -9,7 +9,14 @@ try:
 except ImportError:
     import simplejson as json
 
-GMETRIC = "/usr/bin/gmetric --name=\"%s\" --value=\"%s\" --type=\"int32\" --units=\"%s\""
+hasPyMongo = None
+try:
+    import pymongo
+    hasPyMongo = True
+except ImportError:
+    hasPyMongo = False
+
+GMETRIC = "/usr/bin/gmetric --name=\"%s\" --value=\"%s\" --type=\"%s\" --units=\"%s\""
 
 class ServerStatus:
     ops_tmp_file = os.path.join("/", "tmp", "mongo-prevops")
@@ -18,15 +25,62 @@ class ServerStatus:
         self.status = self.getServerStatus()
         # call individual metrics
         for f in ["conns", "btree", "mem", "backgroundFlushing", "repl", "ops", "lock"]:
-            getattr(self,f)()
+            getattr(self, f)()
+
+        if (hasPyMongo):
+            self.stats = self.getStats()
+            self.writeStats()
 
     def getServerStatus(self):
-        raw = urllib2.urlopen( "http://127.0.0.1:28017/_status" ).read()
-        return json.loads( raw )["serverStatus"]
+        raw = urllib2.urlopen("http://localhost:28017/_status").read()
+        return json.loads(raw)["serverStatus"]
+
+    def getStats(self):
+        c = pymongo.Connection("localhost:27017", slave_okay=True)
+        stats = []
+
+        for dbName in c.database_names():
+            db = c[dbName]
+            dbStats = db.command("dbstats")
+            if dbStats["objects"] == 0:
+                continue
+            stats.append(dbStats)
+
+        c.disconnect()
+        return stats
+
+    def writeStats(self):
+        keys = { "numExtents":"extents", "objects":"objects",
+                 "fileSize": "bytes", "dataSize": "bytes", "indexSize": "bytes", "storageSize": "bytes" }
+
+        totals = {}
+        for k in keys.keys():
+            totals[k] = 0
+
+        for status in self.stats:
+            dbName = status["db"]
+
+            for k, v in keys.iteritems():
+                value = status[k]
+                self.callGmetric({dbName + "_" + k: (value, v)})
+                totals[k] += value
+
+        for k, v in keys.iteritems():
+            self.callGmetric({"total_" + k: (totals[k], v)})
+
+        self.callGmetric({"total_dataAndIndexSize" : (totals["dataSize"]+totals["indexSize"], "bytes")})
 
     def callGmetric(self, d):
-        for k,v in d.iteritems():
-            cmd = GMETRIC % ("mongodb_" + k, v[0], v[1])
+        for k, v in d.iteritems():
+            unit = None
+            if (isinstance(v[0], int)):
+                unit = "int32"
+            elif (isinstance(v[0], float)):
+                unit = "double"
+            else:
+                raise RuntimeError(str(v[0].__class__) + " unknown (key: " + k + ")")
+
+            cmd = GMETRIC % ("mongodb_" + k, v[0], unit, v[1])
             Popen(cmd, shell=True)
 
     def conns(self):
@@ -70,12 +124,12 @@ class ServerStatus:
         except (ValueError, IOError):
             prev_ops = {}
 
-        for k,v in cur_ops.iteritems():
+        for k, v in cur_ops.iteritems():
             if k in prev_ops:
                 name = k + "s_per_second"
                 if k == "query":
                     name = "queries_per_second"
-                out[name] = (max(0, float(v) - float(prev_ops[k]) ) / 60, "ops/s")
+                out[name] = (max(0, float(v) - float(prev_ops[k])) / 60, "ops/s")
 
         f = open(self.ops_tmp_file, 'w')
         try:
