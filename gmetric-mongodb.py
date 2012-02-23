@@ -117,10 +117,9 @@ class ServerStatus:
         out = {}
         cur_ops = self.status["opcounters"]
         try:
-            f = open(self.ops_tmp_file, "r")
-            content = f.read()
-            prev_ops = json.loads(content)
-            f.close()
+            with open(self.ops_tmp_file, "r") as f:
+                content = f.read()
+                prev_ops = json.loads(content)
         except (ValueError, IOError):
             prev_ops = {}
 
@@ -131,11 +130,8 @@ class ServerStatus:
                     name = "queries_per_second"
                 out[name] = (max(0, float(v) - float(prev_ops[k])) / 60, "ops/s")
 
-        f = open(self.ops_tmp_file, 'w')
-        try:
+        with open(self.ops_tmp_file, 'w') as f:
             f.write(json.dumps(cur_ops))
-        finally:
-            f.close()
 
         self.callGmetric(out)
 
