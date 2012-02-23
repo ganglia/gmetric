@@ -2,7 +2,7 @@
 # vim: set ts=4 sw=4 et :
 
 from subprocess import Popen
-import sys, os, urllib2
+import sys, os, urllib2, time
 
 try:
     import json
@@ -116,7 +116,11 @@ class ServerStatus:
     def ops(self):
         out = {}
         cur_ops = self.status["opcounters"]
+
+        lastChange = None
         try:
+            os.stat_float_times(True)
+            lastChange = os.stat(self.ops_tmp_file).st_ctime
             with open(self.ops_tmp_file, "r") as f:
                 content = f.read()
                 prev_ops = json.loads(content)
@@ -128,7 +132,11 @@ class ServerStatus:
                 name = k + "s_per_second"
                 if k == "query":
                     name = "queries_per_second"
-                out[name] = (max(0, float(v) - float(prev_ops[k])) / 60, "ops/s")
+
+                interval = time.time() - lastChange
+                if (interval <= 0.0):
+                    continue
+                out[name] = (max(0, float(v) - float(prev_ops[k])) / interval, "ops/s")
 
         with open(self.ops_tmp_file, 'w') as f:
             f.write(json.dumps(cur_ops))
