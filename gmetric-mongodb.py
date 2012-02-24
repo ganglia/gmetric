@@ -71,7 +71,7 @@ class ServerStatus:
 
         for k, v in keys.iteritems():
             self.callGmetric({"total_" + k: (totals[k], v)})
-            self.callGmetric({"totalNoLocal_" + k: (totals[k], v)})
+            self.callGmetric({"totalNoLocal_" + k: (totalsNoLocals[k], v)})
 
         self.callGmetric({"total_dataAndIndexSize" : (totals["dataSize"]+totals["indexSize"], "bytes")})
         self.callGmetric({"totalNoLocal_dataAndIndexSize" : (totalsNoLocals["dataSize"]+totalsNoLocals["indexSize"], "bytes")})
