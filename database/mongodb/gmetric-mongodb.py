@@ -2,7 +2,7 @@
 # vim: set ts=4 sw=4 et :
 
 from subprocess import Popen
-import sys, os, urllib2, time
+import os, urllib2, time
 
 try:
     import json
