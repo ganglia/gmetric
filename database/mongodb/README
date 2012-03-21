@@ -6,6 +6,7 @@ Right now it tracks the following:
 * Btree statistics
 * Master/Slave status
 * Current connections
+* Database sizes (if pymongo is available)
 
 It is intended to be run every minute as a cron.
 
