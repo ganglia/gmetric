@@ -19,6 +19,12 @@ if ( !-x $gmetric_command ) {
     die("Gmetric command is not executable. Exiting...");
 }
 
+# Optional:
+# Aggregate reports under the disk (default) section.
+# Uncomment following line if you applyed a gmetric patch - available here: http://tobym.posterous.com/gmetric-track-and-group-arbitrary-metrics-wit
+# $gmetric_command = $gmetric_command . " --group disk";
+
+
 my $numArgs = $#ARGV + 1;
 
 unless ( $numArgs >= 1 ) {
@@ -84,7 +90,22 @@ foreach $arg (<@ARGV>) {
 
 sub do_stats {
     my $device         = shift;
-    my $tmp_stats_file = $tmp_dir_base . "/" . "disk_stats_" . $device;
+
+    # temp dir creation
+    my @splitted        = split(/\//,$device);
+    for ( my $i=0 ; $i < $#splitted ; $i++ ) {
+        $tmp_dir_base = $tmp_dir_base . "$splitted[$i]/";
+    }
+
+    # $device variable for parsing init
+    $device = "";
+    for (my  $i=2 ; $i < $#splitted ; $i++ ) {
+        $device = $device . "$splitted[$i]/";
+    }
+    
+    $device = $device . "$splitted[$#splitted]";
+    my $tmp_stats_file = $tmp_dir_base . "$splitted[$#splitted]";
+
 ###############################################################################
     # We need to store a baseline with statistics. If it's not there let's dump
     # it into the file. Don't do anything else
@@ -152,6 +173,10 @@ sub do_stats {
 # http://svn.wikimedia.org/viewvc/mediawiki/trunk/ganglia_metrics/GangliaMetrics.py?view=log
 #      The sector size in this case is hard-coded in the kernel as 512 bytes
 #      There doesn't appear to be any simple way to retrieve that figure
+		
+		#replacing "/" by "_" for later graph generation
+                $device =~ s/\//\_/;
+
                 if ( $which_metrics[$i] == "6" || $which_metrics[$i] == "10" ) {
                     $rate = $rate * 512;
                     print "$disk_stat{$metric} = $rate bytes/sec\n";
