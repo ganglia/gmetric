@@ -1,0 +1,10 @@
+{
+   "report_name" : "netapp_iops_report",
+   "report_type" : "standard",
+   "title" : "Netapp IOPS",
+   "vertical_label" : "ops/sec",
+   "series" : [
+      { "metric": "netapp_cifs_ops", "color": "3333bb", "label": "CIFS", "line_width": "2", "type": "stack" },
+      { "metric": "netapp_nfs_ops", "color": "ffea00", "label": "NFS", "line_width": "2", "type": "stack" }
+   ]
+}

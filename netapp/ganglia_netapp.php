@@ -3,6 +3,8 @@
 # Specify a list of servers you want to monitor
 $servers= array("serv1","serv2");
 
+$community = "public";
+
 # Add any other options you want.
 $gmetric_cmd="/usr/bin/gmetric -d 180 ";
 
@@ -23,6 +25,10 @@ $counter_metrics = array(
   "diskio_writebytes" => ".1.3.6.1.4.1.789.1.2.2.33",
   "net_rcvd_bytes" => ".1.3.6.1.4.1.789.1.2.2.30.0",
   "net_sent_bytes" => ".1.3.6.1.4.1.789.1.2.2.31.0"
+);
+
+$string_metrics = array(
+   "global_status_message" => ".1.3.6.1.4.1.789.1.2.2.25.0"
 );
 
 $tmp_stats_file = "/tmp/netappstats";
@@ -50,16 +56,17 @@ $output = "";
 
 foreach ( $servers as $index => $server ) {
 
+  print $server . " ";
   # Absolute metrics
   foreach ( $absolute_metrics as $metric => $oid ) {
-      $value = `snmpwalk -v 2c -c public $server $oid | awk '{ print \$4 }'`;
-      system($gmetric_cmd . " -n netapp_" . $metric . "_" . $server . " -t float -u pct -v " . $value);
+      $value = `snmpwalk -v 2c -c $community $server $oid | awk '{ print \$4 }'`;
+      system($gmetric_cmd . " --spoof " . $server . ":" . $server . " --name netapp_" . $metric . " --type float --units pct --value " . $value);
   }
 
   # Counter metrics
 
   foreach ( $counter_metrics as $metric => $oid ) {
-      $snmp_value = `snmpwalk -v 2c -c public $server $oid | awk '{ print \$4 }'`;
+      $snmp_value = `snmpwalk -v 2c -c $community $server $oid | awk '{ print \$4 }'`;
       $time = microtime(TRUE);
 
       $output .= join(",", array($time , $server , $metric, $snmp_value) );
@@ -75,15 +82,14 @@ foreach ( $servers as $index => $server ) {
 	$value = 0;
       }
 
-      system($gmetric_cmd . " -n netapp_" . $metric . "_" . $server . " -t float -u '/s' -v " . $value);
+      system($gmetric_cmd . "  --spoof " . $server . ":" . $server . " --name netapp_" . $metric . " --type float --units '/s' --value " . $value);
 
   }
 
 
-  file_put_contents($tmp_stats_file, $output);
-
-
-
 }
 
+file_put_contents($tmp_stats_file, $output);
+
+print "\n";
 ?>

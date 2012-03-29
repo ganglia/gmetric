@@ -1,0 +1,10 @@
+{
+   "report_name" : "netapp_disk_report",
+   "report_type" : "standard",
+   "title" : "Netapp Disk Report",
+   "vertical_label" : "bytes/sec",
+   "series" : [
+      { "metric": "netapp_diskio_readbytes", "color": "3333bb", "label": "Disk Read", "line_width": "2", "type": "stack" },
+      { "metric": "netapp_diskio_writebytes", "color": "dd0000", "label": "Disk Write", "line_width": "2", "type": "stack" }
+   ]
+}

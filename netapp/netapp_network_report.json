@@ -1,0 +1,10 @@
+{
+   "report_name" : "netapp_network_report",
+   "report_type" : "standard",
+   "title" : "Netapp Network Report",
+   "vertical_label" : "bytes/sec",
+   "series" : [
+      { "metric": "netapp_net_sent_bytes", "color": "3333bb", "label": "Net Sent", "line_width": "2", "type": "stack" },
+      { "metric": "netapp_net_rcvd_bytes", "color": "dd0000", "label": "Net Recv", "line_width": "2", "type": "stack" }
+   ]
+}
