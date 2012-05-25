@@ -1,0 +1,16 @@
+Ganglia gmetric wrapper to submit statistics about powerdns, aka pdns
+Specifically, this reports on statistics from the pdns_recursor process
+
+Copyright Ben Hartshorne, Wikimedia Foundation, Inc, 2012
+Released under the GPL v2 or later.  Full text of this license is at
+http://www.gnu.org/licenses/gpl.txt
+
+This script should be called by cron once every minute.
+
+You may have to tweak some variables:
+* location of the gmond.conf file
+* whether your version of gmetric supports the group flag (>3.1 IIRC)
+* the location of the rec_control binary (for talking to the pdns_recursor process)
+
+Feedback to ben@hartshorne.net welcome, or find me in #ganglia in IRC on Freenode.
+
