@@ -4,13 +4,11 @@
 # Specify a list of servers you want to monitor
 $servers= array("serv1","serv2");
 
+# snmp community
 $community = "public";
 
 # Add any other options you want.
 $gmetric_cmd="/usr/bin/gmetric -d 180 ";
-
-# snmp community
-$community = "public";
 
 # List of OIDs we want monitored
 $absolute_metrics = array(
@@ -182,7 +180,7 @@ foreach ( $servers as $index => $server ) {
 
   // Get NetApp Volumes and space (and anything else in $vol_metrics)
   // Get volumes
-  $snmpout = explode("\n",`snmpwalk -mALL -v2c -c public amun .1.3.6.1.4.1.789.1.5.4.1.2`);
+  $snmpout = explode("\n",`snmpwalk -mALL -v2c -c public $server .1.3.6.1.4.1.789.1.5.4.1.2`);
   $volinfo = array();
   foreach ( $snmpout as $snmp_data ) {
     // Get index and volume name
@@ -230,6 +228,7 @@ foreach ( $servers as $index => $server ) {
 
 }
 
+# Store the status in a file. We use it to get counter metrics deltas
 file_put_contents($tmp_stats_file, $output);
 
 print "\n";
