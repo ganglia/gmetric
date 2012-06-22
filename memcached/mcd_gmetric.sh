@@ -172,7 +172,7 @@ then
     touch $ERROR_CREATE
     exit 1
   fi
-  echo "Created statefile.  Exitting."
+  echo "Created statefile.  Exiting."
   exit 0
 fi
 
