@@ -56,7 +56,12 @@ $counter_metrics = array(
   array("metric" => "net_sent_bytes",
 	"oid"    => ".1.3.6.1.4.1.789.1.2.2.31.0",
 	"group"  => "network"
-	)
+	),
+  array("metric" => "fcp_ops",
+        "oid"    => ".1.3.6.1.4.1.789.1.17.25.0",
+        "group"  => "fcp"
+        )
+
 );
 
 $string_metrics = array(
