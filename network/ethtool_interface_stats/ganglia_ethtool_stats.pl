@@ -13,7 +13,7 @@ use strict;
 # Adjust this variables appropriately. Feel free to add any options to gmetric_command
 # necessary for running gmetric in your environment to gmetric_options e.g. -c /etc/gmond.conf
 my $gmetric_exec = "/usr/bin/gmetric";
-my $gmetric_options = "";
+my $gmetric_options = " -g ethtool";
 my $ethtool_bin = "/sbin/ethtool";
 my $metric_prefix = "ethtool";
 
@@ -162,4 +162,10 @@ foreach $interface (<@ARGV>) {
 
   } # end of if ( ! -f $tmp_stats_file ) {
 
+  # Send pause parameters for the interface
+  my $pause_params = `${ethtool_bin} --show-pause ${interface} | xargs echo | sed "s/.*Autonegotiate/Autonegotiate/g"`;
+  system($gmetric_command . " -tstring -n ${metric_prefix}_pause_parameters_${interface} -v '${pause_params}'");
+  
 }
+
+
