@@ -18,7 +18,7 @@
 ###  License to use, modify, and distribute under the GPL
 ###  http://www.gnu.org/licenses/gpl.txt
 
-VERSION=1.0
+VERSION=1.1
 
 GMETRIC="/usr/bin/gmetric"
 GMETRIC_ARGS="-c /etc/gmond.conf"
@@ -29,14 +29,7 @@ ERROR_CREATE="/tmp/mcd_gmetric_create_statefile_failed"
 ERROR_GETS_EMPTY="/tmp/mcd_gets_empty"
 
 MCD_CONF="/etc/sysconfig/memcached"
-
-# get system configuration
-if [ -e ${MCD_CONF} ]
-then
-	source ${MCD_CONF}
-	MCD_PORT=${PORT}
-fi
-MCD_PORT=${MCD_PORT:-11211}
+MCD_DEFAULT_PORT="11211"
 
 date=`date +%s`
 
@@ -49,26 +42,59 @@ then
 fi
 rm -f $ERROR_NOTROOT
 
-if [ "x$1" == "x-h" ]
-then
-  echo "Usage: mcd_gmetric.sh [--clean]"
-  echo "  --clean       delete all tmp files"
-  exit 0
-fi
+while [ -n "$1" ]
+do
+  case "x$1" in
+    "x-h" | "x--help" )
+      echo "Usage: mcd_gmetric.sh [--clean] [--config <file>]"
+      echo "  --clean           delete all tmp files"
+      echo "  --config <file>   the location of the mcd config file to read"
+      echo "                       (default ${MCD_CONF})"
+      exit 0
+      ;;
+    "x--clean" )
+      rm -f $STATEFILE $ERROR_NOTROOT $ERROR_CANT_CONNECT $ERROR_CREATE
+      retval=$?
+      if [ $retval -ne 0 ]
+      then
+        echo "failed to clean up."
+        exit 1
+      else
+        echo "All cleaned up."
+        exit 0
+      fi
+      ;;
+    "x--config" )
+      shift
+      mcd_config=$1
+      if [ ! -n "$mcd_config" ]
+      then
+        echo "mcd configuration filename required"
+        exit 1
+      fi
+      if [ ! -e "$mcd_config" ]
+      then
+        echo "mcd configuration file does not exist"
+        exit 1
+      fi
+      if [ ! -r "$mcd_config" ]
+      then
+        echo "mcd configuration file cannot be read"
+        exit 1
+      fi
+      source ${mcd_config}
+      MCD_PORT=${PORT}
+      ;;
+    *)
+      echo "unrecognized option."
+      exit 1
+      ;;
+  esac
+  shift
+done
 
-if [ "x$1" == "x--clean" ]
-then
-  rm -f $STATEFILE $ERROR_NOTROOT $ERROR_CANT_CONNECT $ERROR_CREATE
-  retval=$?
-  if [ $retval -ne 0 ]
-  then
-    echo "failed to clean up."
-    exit 1
-  else
-    echo "All cleaned up."
-    exit 0
-  fi
-fi
+# set default MCD port if none specified
+MCD_PORT=${MCD_PORT:-$MCD_DEFAULT_PORT}
 
 # if the GMETRIC program isn't installed, compain
 if [ ! -e $GMETRIC ]
@@ -110,10 +136,10 @@ if [ -z "$mcd_total_gets" ]
 then
 # this actually happens rather often for some reason, so I'm just going to fail silently.
 #  if [ -e $ERROR_GETS_EMPTY ] ; then exit 1 ; fi
-#	echo ""
-#	echo "ERROR: mcd_total_gets empty."
-#	echo ""
-	exit 1
+#   echo ""
+#   echo "ERROR: mcd_total_gets empty."
+#   echo ""
+    exit 1
 fi
 rm -f $ERROR_GETS_EMPTY
 
@@ -146,7 +172,7 @@ then
     touch $ERROR_CREATE
     exit 1
   fi
-  echo "Created statefile.  Exitting."
+  echo "Created statefile.  Exiting."
   exit 0
 fi
 
@@ -189,13 +215,20 @@ mcd_sets_per_sec=`echo "scale=3;${mcd_total_sets_diff}/${time_diff}"|bc`
 mcd_hits_per_sec=`echo "scale=3;${mcd_total_hits_diff}/${time_diff}"|bc`
 mcd_hit_perc=`echo "scale=3; ${mcd_total_hits_diff} * 100 / ${mcd_total_gets_diff}" | bc`
 
+# if we're running on a non-standard port, it might be the case that
+# we've got multiple memcached's being watched.  Make the metric name
+# differentiate between them.
+if [ $MCD_PORT -ne $MCD_DEFAULT_PORT ]
+then
+    metric_name_uniquifier="${MCD_PORT}_"
+fi
 
-$GMETRIC $GMETRIC_ARGS --name="mcd_seconds_measured" --value=${time_diff} --type=uint32 --units="secs"
-$GMETRIC $GMETRIC_ARGS --name="mcd_items_cached" --value=${mcd_curr_items} --type=uint32 --units="items"
-$GMETRIC $GMETRIC_ARGS --name="mcd_bytes_used" --value=${mcd_curr_bytes} --type=uint32 --units="bytes"
-$GMETRIC $GMETRIC_ARGS --name="mcd_conns" --value=${mcd_curr_conns} --type=uint32 --units="connections"
-$GMETRIC $GMETRIC_ARGS --name="mcd_gets" --value=${mcd_gets_per_sec} --type=float --units="gps"
-$GMETRIC $GMETRIC_ARGS --name="mcd_sets" --value=${mcd_sets_per_sec} --type=float --units="sps"
-$GMETRIC $GMETRIC_ARGS --name="mcd_cache_hits" --value=${mcd_hits_per_sec} --type=float --units="hps"
-$GMETRIC $GMETRIC_ARGS --name="mcd_cache_hit%" --value=${mcd_hit_perc} --type=float --units="%"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}seconds_measured" --value=${time_diff} --type=uint32 --units="secs"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}items_cached" --value=${mcd_curr_items} --type=uint32 --units="items"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}bytes_used" --value=${mcd_curr_bytes} --type=uint32 --units="bytes"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}conns" --value=${mcd_curr_conns} --type=uint32 --units="connections"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}gets" --value=${mcd_gets_per_sec} --type=float --units="gps"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}sets" --value=${mcd_sets_per_sec} --type=float --units="sps"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}cache_hits" --value=${mcd_hits_per_sec} --type=float --units="hps"
+$GMETRIC $GMETRIC_ARGS --name="mcd_${metric_name_uniquifier}cache_hit%" --value=${mcd_hit_perc} --type=float --units="%"
 
