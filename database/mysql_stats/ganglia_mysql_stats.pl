@@ -11,7 +11,7 @@
 # Adjust this variables appropriately. Feel free to add any options to gmetric_command
 # necessary for running gmetric in your environment to gmetric_options e.g. -c /etc/gmond.conf
 my $gmetric_exec = "/usr/bin/gmetric";
-my $gmetric_options = "";
+my $gmetric_options = " -d 180 ";
 
 # You only need to grant usage privilege to the user getting the stats e.g.
 #### grant USAGE on *.* to 'ganglia'@'localhost' identified by 'xxxxx';
@@ -389,7 +389,8 @@ if ( ! -d $tmp_dir_base ) {
 	system("mkdir -p $tmp_dir_base");
 }
 
-my %old_stats, %new_stats;
+my %old_stats;
+my %new_stats;
 
 ###############################################################################
 # We need to store a baseline with statistics. If it's not there let's dump 
