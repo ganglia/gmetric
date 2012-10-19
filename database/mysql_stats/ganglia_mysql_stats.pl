@@ -461,7 +461,7 @@ if ( ! -f $tmp_stats_file ) {
 	  if ( exists $new_stats{$metric} ) {
 	    print "$metric = $new_stats{$metric}\n";
 	    if (  $new_stats{$metric} >= 0 ) {
-		system($gmetric_command . " -u $units -tfloat -n ${metric_prefix}_" . lc($metric) . " -v " . $new_stats{$metric});
+		system($gmetric_command . " -u '" . $units . "' -tfloat -n ${metric_prefix}_" . lc($metric) . " -v " . $new_stats{$metric});
 	    }
 	  }
 	}
