@@ -1,0 +1,8 @@
+Included are two scripts to collect metrics off of Arista switches.
+Arista runs Fedora Core 14 i686. You will need to build Ganglia for it
+then install.
+
+1. ganglia_arista_interfaces.py - provides interface statistics such as
+   number of bytes in/out, errors, collisions etc.
+2. ganglia_arista_transceivers.py - provides transceiver stats such as
+   voltage, optical power, temperature
