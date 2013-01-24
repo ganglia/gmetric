@@ -3,6 +3,8 @@
 ###############################################################################
 # Get ping metrics. Supply an IP address or a name
 #
+# Uses ping command. Make sure you can run ping as the user.
+#
 # AUTHOR: Vladimir Vuksan
 ###############################################################################
 import subprocess
@@ -13,7 +15,7 @@ import os
 # Variables that can be set
 ping_binary = "/bin/ping"
 ganglia_metric_group = "gw_ping"
-gmetric_bin = "echo /usr/bin/gmetric"
+gmetric_bin = "/usr/bin/gmetric"
 number_of_pings = "5"
 
 if (len(sys.argv) < 2):
