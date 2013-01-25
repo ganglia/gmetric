@@ -35,7 +35,7 @@ out, error = ping.communicate()
 rtt_re = re.compile("(.*)min(.*) = (?P<min>\d+.\d+)/(?P<avg>\d+.\d+)/(?P<max>\d+.\d+)/(?P<mdev>\d+.\d+) ms$")
 pkts_re = re.compile("(.*), (?P<packet_loss>.*)% packet loss")
 
-gmetric_bin = gmetric_bin + " -g " + ganglia_metric_group  + " -u float"
+gmetric_bin = gmetric_bin + " -g " + ganglia_metric_group  + " -t float"
 
 for line in out.split('\n'):
     regMatch = rtt_re.match(line)
