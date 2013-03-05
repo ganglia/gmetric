@@ -1,13 +1,20 @@
 #!/usr/bin/php
 <?php
 
-# Specify a list of servers you want to monitor
+############################################################################
+# This script is used to collect metrics from one or more Netapp servers
+# than sends them Ganglia. It will spoof Netapp hosts so they appear
+# as separate hosts in the UI
+############################################################################
+
+# Specify a list of servers (hostnames) you want to monitor. 
 $servers= array("serv1","serv2");
 
 # snmp community
 $community = "public";
 
-# Add any other options you want.
+# Add any other options you want. If you are using a different cluster for Netapps
+# add alternative gmond.conf with -c 
 $gmetric_cmd="/usr/bin/gmetric -d 180 ";
 
 # List of OIDs we want monitored
