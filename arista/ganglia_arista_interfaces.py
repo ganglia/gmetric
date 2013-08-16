@@ -1,166 +1,107 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-###############################################################################
-# You need Ganglia installed on Arista or alternatively install the
-# gmetric.py from Ganglia_Contrib repo
-###############################################################################
-import sys
-import socket
-import re
-import os
-import pickle
-import time
-import subprocess
+######################################################################
+# Uses SysDb
+#
+# Run it with daemonize /persist/sys/ganglia_arista_interfaces.py
+#
+# Alternatively run it at boot with
+#
+# daemon ganglia_interfaces
+#   command /persist/sys/ganglia_arista_interfaces.py    
+######################################################################
+import time, socket, json
+import sys, os, copy 
 
-gmetric_cmd = "/usr/bin/gmetric -d 240 -g arista ";
-old_stats_file = "/var/tmp/arista_interface_stats"
+import PyClient
+pc = PyClient.PyClient('ar', 'Sysdb')
 
-#Ethernet2 is up, line protocol is up (connected)
-#  Hardware is Ethernet, address is 001c.7315.4f4c (bia 001c.7315.4f4c)
-#  MTU 9212 bytes, BW 10000000 Kbit
-#  Full-duplex, 10Gb/s, auto negotiation: off
-#  Up 28 days, 16 hours, 41 minutes, 31 seconds
-#  Last clearing of "show interface" counters never
-#  5 minutes input rate 94.6 Mbps (1.0% with framing), 44460 packets/sec
-#  5 minutes output rate 914 Mbps (9.3% with framing), 102236 packets/sec
-#     116444952493 packets input, 32638819092719 bytes
-#     Received 11778 broadcasts, 0 multicast
-#     0 runts, 0 giants
-#     0 input errors, 0 CRC, 0 alignment, 0 symbol
-#     0 PAUSE input
-#     258494794597 packets output, 296163875263383 bytes
-#     Sent 860721 broadcasts, 16166088 multicast
-#     0 output errors, 0 collisions
-#     0 late collision, 0 deferred
-#     0 PAUSE output
-interface_re=re.compile('^(?P<interface_type>\D+)(?P<interface>\d+)( is )(?P<interface_state>\w+)(, line protocol is )')
-traffic_inbound_re=re.compile('(\s+)(?P<pkts_in>\d+)( packets input, )(?P<bytes_in>\d+)( bytes)')
-traffic_outbound_re=re.compile('(\s+)(?P<pkts_out>\d+)( packets output, )(?P<bytes_out>\d+)( bytes)')
-bcast_inbound_re=re.compile('(\s+)(Received )(?P<bcast_in>\d+)( broadcasts, )(?P<mcast_in>\d+)( multicast)')
-bcast_outbound_re=re.compile('(\s+)(Sent )(?P<bcast_out>\d+)( broadcasts, )(?P<mcast_out>\d+)( multicast)')
-pause_re=re.compile('(\s+)(?P<pause_value>\d+)( PAUSE )(?P<pause_type>output|input)')
-input_errors_re=re.compile('(\s+)(?P<in_errors>\d+)( input errors, )(?P<in_crc>\d+)( CRC, )(?P<in_align>\d+)( alignment, )(?P<in_symbol>\d+)( symbol)')
-output_errors_re=re.compile('(\s+)(?P<out_errors>\d+)( output errors, )(?P<out_collisions>\d+)( collisions)')
-runts_re=re.compile('(\s+)(?P<runts>\d+)( runts, )(?P<giants>\d+)( giants)')
-collision_re=re.compile('(\s+)(?P<late_collision>\d+)( late collision, )(?P<deferred>\d+)( deferred)')
+METRICS = {
+    'time' : 0,
+    'data' : {}
+}
+
+LAST_METRICS = dict(METRICS)
+
+gmetric_cmd = "/usr/bin/gmetric -d 240 -g arista -c /persist/sys/gmond.conf  ";
+# Get status of all interfaces
+status = pc.root()['ar']['Sysdb']['interface']['status']['eth']['phy']
+
+counters = dict()
+
+####################################################################
+# I want to convert any numbers to float. If they are no numbers
+# but strings for whatever reason I want those to be set to 0
+# e.g. out_discards often shows up as None. I don't want the script
+# to die if that is the case so I'm using exceptions. Lame I know
+####################################################################
+def format_number(value):
+  try:
+    new_value = float(value)
+  except:
+    new_value = 0
+
+  return new_value
 
 
-old_stats = dict()
-##############################################################################
-# Read in old stats if the file is present
-##############################################################################
-if os.path.isfile(old_stats_file):
-  pkl_file = open(old_stats_file, 'rb')
-  old_stats = pickle.load(pkl_file)
-  pkl_file.close()
-  old_time = os.stat(old_stats_file).st_mtime
+new_metrics = dict() 
 
-try:
-  # Initialize dictionary
-  new_stats = dict()
+# Get a list of all interfaces
+for ifname in status:
+  # We need to "mount" every single interface. That way we do not have to keep remounting it
+  counters[ifname] = pc.root()['ar']['Sysdb']['interface']['counter']['eth']['phy'][ifname]['current']
+  new_metrics[ifname] = dict()
 
-  current_interface = ""
 
-  output = subprocess.check_output(["/usr/bin/Cli", "-c", "show interfaces"])
+####################################################################
+# Daemonize 
+####################################################################
+while 1:
+
+  start_fetch = time.time() 
   new_time = time.time()
-  # Parse output
-  for line in output.split('\n'):
-  
-    # First check whether it is showing the absolute value of routes
-    regMatch = interface_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      if linebits['interface_type'] == "Ethernet":
-          current_interface = "et" + linebits['interface']
-      else:
-          current_interface = linebits['interface_type'].lower() + linebits['interface']        
-      new_stats[current_interface] = dict()
-      new_stats[current_interface]['state'] = linebits['interface_state']
-      continue
 
-    regMatch = traffic_inbound_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+  # Loop through any know interfaces
+  for ifname in status:
+    new_metrics[ifname]["pkts_out"] = format_number(counters[ifname].statistics.outUcastPkts)
+    new_metrics[ifname]["mcast_out"] = format_number(counters[ifname].statistics.outMulticastPkts)
+    new_metrics[ifname]["bcast_out"] = format_number(counters[ifname].statistics.outBroadcastPkts)
+    new_metrics[ifname]["pkts_in"] = format_number(counters[ifname].statistics.inUcastPkts)
+    new_metrics[ifname]["mcast_in"] = format_number(counters[ifname].statistics.inMulticastPkts)
+    new_metrics[ifname]["bcast_in"] = format_number(counters[ifname].statistics.inBroadcastPkts)
+    new_metrics[ifname]["bytes_out"] = format_number(counters[ifname].statistics.outOctets)
+    new_metrics[ifname]["bytes_in"] = format_number(counters[ifname].statistics.inOctets)
+    new_metrics[ifname]["in_discards"] = format_number(counters[ifname].statistics.inDiscards)
+    new_metrics[ifname]["in_errors"] = format_number(counters[ifname].statistics.inErrors)
+    new_metrics[ifname]["out_discards"] = format_number(counters[ifname].statistics.outDiscards)
+    new_metrics[ifname]["out_errors"] = format_number(counters[ifname].statistics.outErrors)
 
-    regMatch = traffic_outbound_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+  end_fetch = time.time()
 
-    regMatch = bcast_inbound_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+  fetch_time = end_fetch - start_fetch 
 
-    regMatch = bcast_outbound_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+  # Emit metrics
+  if LAST_METRICS['time'] != 0:
+    time_diff = new_time - LAST_METRICS['time']
+    for ifname in new_metrics:
+      ifname_pretty = ifname.replace("Ethernet", "et").replace("Management", "ma").replace("Vlan", "vlan") 
+      if status[ifname].linkStatus == "linkUp":
+        for metric in new_metrics[ifname]:
 
-    regMatch = input_errors_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+          try:
+            diff = (new_metrics[ifname][metric] - LAST_METRICS['data'][ifname][metric]) / time_diff
 
-    regMatch = output_errors_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+          except KeyError, e:
+            pass
 
-    regMatch = runts_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+          # If difference is negative counters have rolled.
+          if ( diff >= 0 ):
+            os.system( gmetric_cmd + " -t float  -n "  + ifname_pretty + "_" + metric + " -u /sec -v " + str(diff))
 
-    regMatch = collision_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      for key in linebits:
-        new_stats[current_interface][key] = linebits[key]
-      continue
+  # update cache
+  LAST_METRICS = {
+     'time': time.time(),
+     'data': copy.deepcopy(new_metrics)
+  }
 
-    regMatch = pause_re.match(line)
-    if regMatch:
-      linebits = regMatch.groupdict()
-      metric_key = "pause_" + linebits['pause_type']
-      new_stats[current_interface][metric_key] = linebits['pause_value']
-      continue
-
-    # Write up stats into a file for use next time around
-    output = open(old_stats_file, 'wb')
-    pickle.dump(new_stats, output)
-    output.close()
-  
-
-  # Make sure we have old stats. Otherwise we can't calculate diffs
-  if len(old_stats) > 0:
-    time_diff = new_time - old_time
-    for key in new_stats:
-      # Only emit traffic stats for interfaces that are up
-      if new_stats[key]['state'] == "up":
-        for subkey in new_stats[key]:
-          if subkey not in ['state']:
-            #print key + "_" + subkey + "=" + new_stats[key][subkey]
-            diff = (int(new_stats[key][subkey]) - int(old_stats[key][subkey])) / time_diff
-            # If difference is negative counters have rolled.
-            if ( diff >= 0 ):
-              os.system( gmetric_cmd + " -t float  -n "  + key + "_" + subkey + " -u /sec -v " + str(diff))
-
-except OSError, e:
-  print e
-
+  time.sleep(30)
