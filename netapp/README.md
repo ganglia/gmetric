@@ -23,6 +23,12 @@ This is a list of all the Netapp servers you have
 
 This is your SNMP community string.
 
+You should run this script quite often ie. I use a shell script like this which I run in a screen session (or you can use runit)
+
+``while [ 1 ]; do  php ganglia_netapp.php;  sleep 15;  done``
+
+This will run the script every 15 seconds
+
 Graph reports
 ===============================
 
