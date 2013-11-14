@@ -13,6 +13,7 @@
 use strict;
 use v5.10;
 
+my $VERBOSE=0;
 my $gmetric_command = "/usr/bin/gmetric";
 
 if ( !-x $gmetric_command ) {
@@ -28,7 +29,7 @@ if ( !-x $gmetric_command ) {
 my $numArgs = $#ARGV + 1;
 
 unless ( $numArgs >= 1 ) {
-    die("You need to supply device(s) e.g. sda, hda, md0, etc.");
+    die("You need to supply device(s) e.g. auto, sda, hda, md0, etc.");
 }
 
 my @which_metrics = split( / /, "4 8 6 10 13" );
@@ -84,8 +85,30 @@ if ( !-d $tmp_dir_base ) {
 }
 my $arg;
 
-foreach $arg (<@ARGV>) {
-    do_stats($arg);
+if( $ARGV[0] eq "auto" ) {
+    foreach $arg ( find_all_devices() ) {
+	do_stats($arg);
+    }
+}
+else {
+    foreach $arg (<@ARGV>) {
+	do_stats($arg);
+    }
+}
+
+sub find_all_devices {
+    open( my $PARTITIONS, "< /proc/partitions");
+    my @devices;
+    while(<$PARTITIONS>) {
+	my $line = $_;
+	chomp($line);
+	$line =~ s{^\s+}{};
+	my @line = split(/\s+/, $line);
+	next unless $line[0];
+	next if $line[0] =~ m{^(\s*|major|loop|drdb|dm-.*)$}x;
+	push(@devices, $line[3]);
+    }
+    return @devices;
 }
 
 sub do_stats {
@@ -104,14 +127,14 @@ sub do_stats {
     }
     
     $device = $device . "$splitted[$#splitted]";
-    my $tmp_stats_file = $tmp_dir_base . "$splitted[$#splitted]";
+    my $tmp_stats_file = $tmp_dir_base . "/$splitted[$#splitted]";
 
 ###############################################################################
     # We need to store a baseline with statistics. If it's not there let's dump
     # it into the file. Don't do anything else
 ###############################################################################
     if ( !-f $tmp_stats_file ) {
-        print "Creating baseline. No output this cycle\n";
+        print "Creating baseline. No output this cycle\n" if $VERBOSE;
         system("cat $proc_file > $tmp_stats_file");
     }
     else {
@@ -179,7 +202,7 @@ sub do_stats {
 
                 if ( $which_metrics[$i] == "6" || $which_metrics[$i] == "10" ) {
                     $rate = $rate * 512;
-                    print "$disk_stat{$metric} = $rate bytes/sec\n";
+                    print "$disk_stat{$metric} = $rate bytes/sec\n" if $VERBOSE;
                     system( $gmetric_command
                           . " -tdouble -u 'bytes/sec' -n diskstat_"
                           . $device . "_"
@@ -188,7 +211,7 @@ sub do_stats {
                 }
 		elsif ($which_metrics[$i] == "13") {
 		    my $percentage=$rate/10;	# convert ms/s to a percentage
-		    print "$disk_stat{$metric} = $percentage%\n";
+		    print "$disk_stat{$metric} = $percentage%\n" if $VERBOSE;
 		    system( $gmetric_command
                           . " -tdouble -u 'percent' -n diskstat_"
                           . $device . "_"
@@ -196,7 +219,7 @@ sub do_stats {
                           . $percentage );
                 }
                 else {
-                    print "$disk_stat{$metric} = $rate / sec\n";
+                    print "$disk_stat{$metric} = $rate / sec\n" if $VERBOSE;
                     system( $gmetric_command
                           . " -tuint16 -u 'calls/sec' -n diskstat_"
                           . $device . "_"
