@@ -6,3 +6,22 @@ then install.
    number of bytes in/out, errors, collisions etc.
 2. ganglia_arista_transceivers.py - provides transceiver stats such as
    voltage, optical power, temperature
+
+**30-Apr-2014 - Update to eAPI**
+Updated ganglia_arista_interfaces.py to use eAPI which is the support method
+for interfacing with EOS programmically.  eAPI must be configured on the
+node.  To configure eAPI, enter the following commands in config
+mode:
+
+```
+eos#configure
+eos(config)#username eapi secret password
+eos(config)#management api http-commands
+eos(config-mgmt-api-http-cmds)#no shutdown
+eos(config-mgmt-api-http-cmds)#
+```
+
+In addition the script can now be run either on-box or off-box.  Use
+python ganglia_arisa_interfaces.py --help to see command line options for
+using the updated script with eAPI.
+

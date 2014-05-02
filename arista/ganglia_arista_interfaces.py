@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 
 ######################################################################
-# Uses SysDb
+# Uses eAPI
 #
 # Run it with daemonize /persist/sys/ganglia_arista_interfaces.py
+#  --username - sets the eAPI username to use
+#  --password - sets the eAPI password to use
+#  --protocol [http | https] - sets the protocol to use
 #
 # Alternatively run it at boot with
 #
 # daemon ganglia_interfaces
-#   command /persist/sys/ganglia_arista_interfaces.py    
+#   command /persist/sys/ganglia_arista_interfaces.py
 ######################################################################
 import time, socket, json
-import sys, os, copy 
+import sys, os, copy
+import argparse
+import urlparse
 
-import PyClient
-pc = PyClient.PyClient('ar', 'Sysdb')
+import jsonrpclib
 
 METRICS = {
     'time' : 0,
@@ -24,10 +28,33 @@ METRICS = {
 LAST_METRICS = dict(METRICS)
 
 gmetric_cmd = "/usr/bin/gmetric -d 240 -g arista -c /persist/sys/gmond.conf  ";
-# Get status of all interfaces
-status = pc.root()['ar']['Sysdb']['interface']['status']['eth']['phy']
 
 counters = dict()
+
+def make_url(host, uid, pwd, proto, port):
+  if proto not in ['http', 'https']:
+    raise ValueError('invalid protocol specified')
+
+  if proto == 'http' and not port:
+    port = 80
+  elif proto == 'https' and not port:
+    port = 443
+
+  if int(port) < 1 or port > 65535:
+    raise ValueError('port value is out of range')
+
+  scheme = proto
+  netloc = '%s:%s@%s:%s' % (uid, pwd, host, port)
+  path = '/command-api'
+
+  return urlparse.urlunsplit((scheme, netloc, path, None, None))
+
+def make_connection(url):
+  return jsonrpclib.Server(url)
+
+def run_command(connection, commands):
+  assert isinstance(commands, list)
+  return connection.runCmds(1, commands)
 
 ####################################################################
 # I want to convert any numbers to float. If they are no numbers
@@ -43,49 +70,47 @@ def format_number(value):
 
   return new_value
 
-
-new_metrics = dict() 
-
-# Get a list of all interfaces
-for ifname in status:
-  # We need to "mount" every single interface. That way we do not have to keep remounting it
-  counters[ifname] = pc.root()['ar']['Sysdb']['interface']['counter']['eth']['phy'][ifname]['current']
-  new_metrics[ifname] = dict()
-
-
 ####################################################################
-# Daemonize 
+# Daemonize
 ####################################################################
-while 1:
+def start(connection):
+  while 1:
 
-  start_fetch = time.time() 
-  new_time = time.time()
+    start_fetch = time.time()
+    new_time = time.time()
 
-  # Loop through any know interfaces
-  for ifname in status:
-    new_metrics[ifname]["pkts_out"] = format_number(counters[ifname].statistics.outUcastPkts)
-    new_metrics[ifname]["mcast_out"] = format_number(counters[ifname].statistics.outMulticastPkts)
-    new_metrics[ifname]["bcast_out"] = format_number(counters[ifname].statistics.outBroadcastPkts)
-    new_metrics[ifname]["pkts_in"] = format_number(counters[ifname].statistics.inUcastPkts)
-    new_metrics[ifname]["mcast_in"] = format_number(counters[ifname].statistics.inMulticastPkts)
-    new_metrics[ifname]["bcast_in"] = format_number(counters[ifname].statistics.inBroadcastPkts)
-    new_metrics[ifname]["bytes_out"] = format_number(counters[ifname].statistics.outOctets)
-    new_metrics[ifname]["bytes_in"] = format_number(counters[ifname].statistics.inOctets)
-    new_metrics[ifname]["in_discards"] = format_number(counters[ifname].statistics.inDiscards)
-    new_metrics[ifname]["in_errors"] = format_number(counters[ifname].statistics.inErrors)
-    new_metrics[ifname]["out_discards"] = format_number(counters[ifname].statistics.outDiscards)
-    new_metrics[ifname]["out_errors"] = format_number(counters[ifname].statistics.outErrors)
+    data = run_command(connection, ['show interfaces'])
+    new_metrics = dict()
 
-  end_fetch = time.time()
+    # Loop through any know interfaces
+    for key, value in data[0]['interfaces'].items():
+      if value['lineProtocolStatus'] == 'up':
+        counters = value['interfaceCounters']
+        new_metrics[str(key)] = dict()
+        new_metrics[str(key)]['pkts_out'] = format_number(counters['outUcastPkts'])
+        new_metrics[str(key)]['mcast_out'] = format_number(counters['outMulticastPkts'])
+        new_metrics[str(key)]['bcast_out'] = format_number(counters['outBroadcastPkts'])
+        new_metrics[str(key)]['pkts_in'] = format_number(counters['inUcastPkts'])
+        new_metrics[str(key)]['mcast_in'] = format_number(counters['inMulticastPkts'])
+        new_metrics[str(key)]['bcast_in'] = format_number(counters['inBroadcastPkts'])
+        new_metrics[str(key)]['bytes_out'] = format_number(counters['outOctets'])
+        new_metrics[str(key)]['bytes_in'] = format_number(counters['inOctets'])
+        new_metrics[str(key)]['in_discards'] = format_number(counters['inDiscards'])
+        new_metrics[str(key)]['in_errors'] = format_number(counters['totalInErrors'])
+        new_metrics[str(key)]['out_discards'] = format_number(counters['outDiscards'])
+        new_metrics[str(key)]['out_errors'] = format_number(counters['totalOutErrors'])
 
-  fetch_time = end_fetch - start_fetch 
+    end_fetch = time.time()
 
-  # Emit metrics
-  if LAST_METRICS['time'] != 0:
-    time_diff = new_time - LAST_METRICS['time']
-    for ifname in new_metrics:
-      ifname_pretty = ifname.replace("Ethernet", "et").replace("Management", "ma").replace("Vlan", "vlan") 
-      if status[ifname].linkStatus == "linkUp":
+    fetch_time = end_fetch - start_fetch
+
+    # Emit metrics
+    global LAST_METRICS
+    if LAST_METRICS['time'] != 0:
+      time_diff = new_time - LAST_METRICS['time']
+      for ifname in new_metrics:
+        ifname_pretty = ifname.replace("Ethernet", "et").replace("Management", "ma").replace("Vlan", "vlan")
+
         for metric in new_metrics[ifname]:
 
           try:
@@ -98,10 +123,51 @@ while 1:
           if ( diff >= 0 ):
             os.system( gmetric_cmd + " -t float  -n "  + ifname_pretty + "_" + metric + " -u /sec -v " + str(diff))
 
-  # update cache
-  LAST_METRICS = {
-     'time': time.time(),
-     'data': copy.deepcopy(new_metrics)
-  }
+    # update cache
+    LAST_METRICS = {
+       'time': time.time(),
+       'data': copy.deepcopy(new_metrics)
+    }
 
-  time.sleep(30)
+    time.sleep(30)
+
+def main():
+  parser = argparse.ArgumentParser()
+
+  parser.add_argument('--username', '-u',
+                      default='eapi',
+                      help='Specifies the eAPI username')
+
+  parser.add_argument('--password', '-p',
+                      default='password',
+                      help='Specifies the eAPI password')
+
+  parser.add_argument('--hostname',
+                      default='localhost',
+                      help='Specifies the hostname of the EOS node')
+
+  parser.add_argument('--protocol',
+                      default='https',
+                      choices=['http', 'https'],
+                      help='Specifies the protocol to use (default=https)')
+
+  parser.add_argument('--port',
+                      default=0,
+                      type=int,
+                      help='Specifies the port to use (default=443)')
+
+  args = parser.parse_args()
+
+  url = make_url(args.hostname, args.username, args.password,
+                 args.protocol, args.port)
+
+  try:
+    connection = make_connection(url)
+    start(connection)
+  except KeyboardInterrupt:
+    parser.exit()
+  except Exception as exc:
+    parser.error(exc)
+
+if __name__ == '__main__':
+  main()
