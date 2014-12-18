@@ -78,7 +78,7 @@ def send_metric(metric, dry_run=False):
 def zpool_list():
     """ Get the list of all zpools.  Capture capacity & health along
     the way. """
-    out = check_output(['zpool', 'list'])
+    out = check_output(['/sbin/zpool', 'list'])
     lines = out.splitlines()
     del lines[0]
     zpools = []
@@ -101,7 +101,7 @@ def zpool_find_errors(pool_name):
     """ There is no property that corresponds cleanly to the errors
     output line from `zpool status`.  Instead the full status command
     is run and anything other than 'no errors' is considered bad. """
-    out = check_output(['zpool', 'status', pool_name])
+    out = check_output(['/sbin/zpool', 'status', pool_name])
     has_errors = 1
     for line in out.splitlines():
         if 'errors:' in line:
