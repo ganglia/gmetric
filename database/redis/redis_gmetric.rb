@@ -22,8 +22,10 @@ host = ARGV[0] || '127.0.0.1'
 port = ARGV[1] || 6379
 @test = ARGV[2] == 'test'
 
-def gmetric(name, units, value, slope='both')
-  cmd = "/usr/bin/gmetric -c /etc/ganglia/gmond.conf --name=redis_#{name} --type=int32 --units=#{units} --value=#{value} --slope=#{slope} --dmax=600"
+def gmetric(group, name, units, value, slope='both')
+  cmd = "/usr/bin/gmetric -c /etc/ganglia/gmond.conf --name=#{group}_#{name} --type=#{type} --units=#{units} --value=#{value} --slope=#{slope} --dmax=600"
+  #ganglia 3.2
+  #cmd = "/usr/bin/gmetric -c /etc/ganglia/gmond.conf --group=#{group} --name=redis_#{name} --type=#{type} --units=#{units} --value=#{value} --slope=#{slope} --dmax=600"
   @test ? puts(cmd) : `#{cmd}`
 end
 
@@ -41,5 +43,5 @@ all_metrics = {'used_memory' => ['used_memory', 'bytes', 'both'],
                'total_connections_received' => ['connections', 'Conn/s', 'positive']}
 
 all_metrics.each do |name, params|
-  gmetric(params[0], params[1], output[name], params[2])
+  gmetric('redis', params[0], params[1], output[name], params[2])
 end
