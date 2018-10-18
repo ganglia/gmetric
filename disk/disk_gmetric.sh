@@ -98,7 +98,7 @@ then
     mkdir -p `dirname $STATEFILE`
   fi
   echo "$date" > $STATEFILE 
-  $iostat -d | tail +4 >> $STATEFILE 
+  $iostat -d | tail -n +4 >> $STATEFILE 
   if [ ! -e $STATEFILE ]
   then
     # if it didn't exist and we couldn't create
@@ -124,7 +124,7 @@ exec 3>&-
 
 # this script uses iostat (part of the sysstat packag) 
 # to retrieve disk metrics
-stats=(`$iostat -d | tail +4`)
+stats=(`$iostat -d | tail -n +4`)
 old_stats=(`cat $STATEFILE`) 
 old_date=${old_stats[0]}
 
@@ -212,7 +212,7 @@ do
   then
   	#just write out the new stats and exit; there's nothing we can do
 	echo "$date" > $STATEFILE
-	$iostat -d | tail +4 >> $STATEFILE
+	$iostat -d | tail -n +4 >> $STATEFILE
 	exit 1
   fi
   # if the system gets backed up and multiple invocations are launched
@@ -249,7 +249,7 @@ $GMETRIC $GMETRIC_ARGS --name="disk_reads" --value="$read_sum" --type="float" --
 $GMETRIC $GMETRIC_ARGS --name="disk_writes" --value="$write_sum" --type="float" --units="blocks/sec"
 
 echo "$date" > $STATEFILE
-$iostat -d | tail +4 >> $STATEFILE
+$iostat -d | tail -n +4 >> $STATEFILE
 
 rm -f $ERROR_CREATE $ERROR_IOSTAT $ERROR_DEVNAME2 $ERROR_DEVNAME $ERROR_GMETRIC $ERROR_TIMEDIFF $ERROR_NOTROOT
 
